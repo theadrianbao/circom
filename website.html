@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,14 +12,16 @@
             background-color: #f8f9fa;
             padding: 20px;
         }
+
         .container {
             max-width: 800px;
             background: white;
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
             margin-top: 50px;
         }
+
         .status-indicator {
             display: inline-block;
             width: 10px;
@@ -26,22 +29,27 @@
             border-radius: 50%;
             margin-right: 10px;
         }
+
         .status-connected {
             background-color: #28a745;
         }
+
         .status-disconnected {
             background-color: #dc3545;
         }
+
         .wallet-status {
             margin-bottom: 20px;
             padding: 10px;
             border-radius: 5px;
             background-color: #f8f9fa;
         }
+
         .loading {
             display: none;
             margin-left: 10px;
         }
+
         .info-box {
             background-color: #e9ecef;
             padding: 15px;
@@ -50,10 +58,11 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1 class="mb-4">XRP Mixer</h1>
-        
+
         <!-- Wallet Status -->
         <div class="wallet-status">
             <div class="d-flex align-items-center mb-2">
@@ -83,13 +92,15 @@
                 <div class="mb-3">
                     <label for="amount" class="form-label">Amount to Deposit (XRP)</label>
                     <div class="input-group">
-                        <input type="number" class="form-control" id="amount" step="0.01" min="0" placeholder="Enter amount">
+                        <input type="number" class="form-control" id="amount" step="10" min="10"
+                            placeholder="Enter amount">
                         <span class="input-group-text">XRP</span>
                     </div>
                     <div class="form-text">Minimum deposit: 0.01 XRP</div>
                 </div>
 
-                <button onclick="deposit()" class="btn btn-primary" id="depositButton" disabled>
+                <!-- <button onclick="deposit()" class="btn btn-primary" id="depositButton" disabled> -->
+                <button onclick="depositWithApiCall()" class="btn btn-primary" id="depositButton" disabled>
                     Deposit
                     <span class="spinner-border spinner-border-sm loading" id="depositSpinner"></span>
                 </button>
@@ -101,13 +112,15 @@
                 <h5 class="card-title">Withdraw XRP</h5>
                 <div class="mb-3">
                     <label for="proof" class="form-label">SNARK Proof</label>
-                    <textarea class="form-control" id="proof" rows="4" placeholder="Enter snarkjs generatecall output"></textarea>
+                    <textarea class="form-control" id="proof" rows="4"
+                        placeholder="Enter snarkjs generatecall output"></textarea>
                 </div>
                 <div class="mb-3">
                     <label for="recipient" class="form-label">Recipient Address</label>
                     <input type="text" class="form-control" id="recipient" placeholder="Enter recipient address">
                 </div>
-                <button onclick="withdraw()" class="btn btn-primary" id="withdrawButton" disabled>
+                <!-- <button onclick="withdraw()" class="btn btn-primary" id="withdrawButton" disabled> -->
+                <button onclick="withdrawWithApiCall()" class="btn btn-primary" id="withdrawButton" disabled>
                     Withdraw
                     <span class="spinner-border spinner-border-sm loading" id="withdrawSpinner"></span>
                 </button>
@@ -154,9 +167,9 @@
                 }
 
                 web3 = new Web3(provider);
-                
+
                 window.ethereum.on('accountsChanged', handleAccountsChanged);
-                
+
                 const accounts = await web3.eth.getAccounts();
                 if (accounts && accounts.length > 0) {
                     await connectWallet();
@@ -186,11 +199,11 @@
             } else if (window.web3) {
                 provider = window.web3.currentProvider;
             }
-            
+
             if (provider && provider.isMetaMask) {
                 return provider;
             }
-            
+
             return null;
         }
 
@@ -208,19 +221,19 @@
 
         async function connectWallet() {
             try {
-                const accounts = await window.ethereum.request({ 
-                    method: 'eth_requestAccounts' 
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
                 });
-                
+
                 if (!accounts || accounts.length === 0) {
                     throw new Error("Please connect your MetaMask wallet");
                 }
 
                 const networkId = await web3.eth.net.getId();
                 const networkName = getNetworkName(networkId);
-                
+
                 contract = new web3.eth.Contract(abi, contractAddress);
-                
+
                 updateWalletStatus(true, accounts[0], networkName);
             } catch (error) {
                 updateWalletStatus(false);
@@ -292,7 +305,98 @@
             }
         }
 
+        async function depositWithApiCall() {
+            const depositSpinner = document.getElementById('depositSpinner');
+            const depositButton = document.getElementById('depositButton');
+            const amountInput = document.getElementById('amount');
+            const amount = parseFloat(amountInput.value);
+
+            if (isNaN(amount) || amount <= 0) {
+                alert("Please enter a valid deposit amount greater than 0.");
+                return;
+            }
+
+            depositButton.disabled = true;
+            depositSpinner.style.display = 'inline-block';
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/generatecall', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        amount: amount,
+                        currency: 'XRP',
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('API response:', result);
+
+                alert('API call successful: ' + JSON.stringify(result));
+            } catch (error) {
+                console.error('Error during API call:', error);
+                alert('Error: ' + error.message);
+            } finally {
+                depositSpinner.style.display = 'none';
+                depositButton.disabled = false;
+            }
+        }
+
+        async function withdrawWithApiCall() {
+            const withdrawSpinner = document.getElementById('withdrawSpinner');
+            const withdrawButton = document.getElementById('withdrawButton');
+            const proofInput = document.getElementById('proof');
+            const recipientInput = document.getElementById('recipient');
+
+            const proof = proofInput.value.trim();
+            const recipient = recipientInput.value.trim();
+
+            if (!proof || !recipient) {
+                alert("Please provide both the SNARK proof and recipient address.");
+                return;
+            }
+
+            withdrawButton.disabled = true;
+            withdrawSpinner.style.display = 'inline-block';
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/withdraw', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        proof: proof,
+                        recipient: recipient,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('Withdraw API response:', result);
+
+                alert('Withdraw successful: ' + JSON.stringify(result));
+            } catch (error) {
+                console.error('Error during withdraw API call:', error);
+                alert('Error: ' + error.message);
+            } finally {
+                withdrawSpinner.style.display = 'none';
+                withdrawButton.disabled = false;
+            }
+        }
+
+
         window.onload = init;
     </script>
 </body>
+
 </html>
