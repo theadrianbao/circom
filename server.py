@@ -6,11 +6,32 @@ from xrp_contract import XRPContract
 import asyncio
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv('./.env')
 
 app = Flask(__name__)
 # Initialize XRP contract with source wallet seed from environment variable
+print(f'seed: {os.getenv("XRP_CONTRACT_SOURCE_WALLET_SEED")}')
+
 xrp_contract = XRPContract(source_wallet_seed=os.getenv('XRP_CONTRACT_SOURCE_WALLET_SEED'))
+
+def verify_proof(proof, public_signals, verification_key_path):
+    """Function to verify the proof"""
+    try:
+        # Load verification key
+        with open(verification_key_path, "r") as vk_file:
+            verification_key = json.load(vk_file)
+
+        # Example of calling a proof verification function/library
+        # This could use snarkjs, circomlib, or any other tool you are using
+        is_valid = some_proof_verification_library.verify(verification_key, proof, public_signals)
+        return is_valid
+    except Exception as e:
+        return {
+            "success": False,
+            "message": "Error during proof verification.",
+            "error": str(e)
+        }
+    
 
 def execute_generate_call():
     """Helper function to execute the generate call script"""
@@ -44,6 +65,16 @@ def execute_generate_call():
                 output = file.read()
             try:
                 output_json = json.loads(output)
+                proof = output_json.get("proof")  # Extract proof
+                public_signals = output_json.get("public_signals")  # Extract public signals
+
+                # Verify the proof
+                is_valid = verify_proof(proof, public_signals, verification_key_path)
+
+                if is_valid:
+                    verification_message = "Proof verified successfully."
+                else:
+                    verification_message = "Proof verification failed."
             except json.JSONDecodeError:
                 output_json = output
         else:
@@ -52,7 +83,8 @@ def execute_generate_call():
         return {
             "success": True,
             "message": "Script executed successfully.",
-            "output": output_json
+            "output": output_json,
+            "verification": verification_message
         }, 200
 
     except Exception as e:
@@ -103,6 +135,8 @@ async def deploy_contract():
             "message": "An exception occurred.",
             "error": str(e)
         }), 500
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
