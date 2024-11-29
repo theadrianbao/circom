@@ -92,14 +92,13 @@
                 <div class="mb-3">
                     <label for="amount" class="form-label">Amount to Deposit (XRP)</label>
                     <div class="input-group">
-                        <input type="number" class="form-control" id="amount" step="10" min="10"
+                        <input type="number" class="form-control" id="amount" step="10" min="0"
                             placeholder="Enter amount">
                         <span class="input-group-text">XRP</span>
                     </div>
-                    <div class="form-text">Minimum deposit: 0.01 XRP</div>
+                    <div class="form-text">Minimum deposit: 10 XRP</div>
                 </div>
 
-                <!-- <button onclick="deposit()" class="btn btn-primary" id="depositButton" disabled> -->
                 <button onclick="depositWithApiCall()" class="btn btn-primary" id="depositButton" disabled>
                     Deposit
                     <span class="spinner-border spinner-border-sm loading" id="depositSpinner"></span>
@@ -119,7 +118,6 @@
                     <label for="recipient" class="form-label">Recipient Address</label>
                     <input type="text" class="form-control" id="recipient" placeholder="Enter recipient address">
                 </div>
-                <!-- <button onclick="withdraw()" class="btn btn-primary" id="withdrawButton" disabled> -->
                 <button onclick="withdrawWithApiCall()" class="btn btn-primary" id="withdrawButton" disabled>
                     Withdraw
                     <span class="spinner-border spinner-border-sm loading" id="withdrawSpinner"></span>
@@ -132,7 +130,7 @@
     </div>
 
     <script>
-        const contractAddress = "0x29b013021f276b5d9e16edc63d6acb2eaef5995c"; // Replace with actual contract address
+        const contractAddress = "0x53a7aae10d95cd4e9da9aec86e96a35895c039e2"; // Replace with actual contract address
         const abi = [
             {
                 "inputs": [],
@@ -168,6 +166,7 @@
 
                 web3 = new Web3(provider);
 
+                // Add account change listener
                 window.ethereum.on('accountsChanged', handleAccountsChanged);
 
                 const accounts = await web3.eth.getAccounts();
@@ -182,21 +181,25 @@
             }
         }
 
+        // Handle account changes from MetaMask
         async function handleAccountsChanged(accounts) {
             if (accounts.length === 0) {
+                // User disconnected
                 updateWalletStatus(false);
             } else {
+                // Account changed, update connection status
                 const networkId = await web3.eth.net.getId();
                 const networkName = getNetworkName(networkId);
                 updateWalletStatus(true, accounts[0], networkName);
             }
         }
 
+        // Add provider detection function
         function detectProvider() {
             let provider;
             if (window.ethereum) {
                 provider = window.ethereum;
-            } else if (window.web3) {
+            } else if (window.web3) { // Old version of MetaMask support
                 provider = window.web3.currentProvider;
             }
 
@@ -207,6 +210,7 @@
             return null;
         }
 
+        // Error handling function
         function handleConnectionError(error) {
             if (error.code === 4001) {
                 alert("Connection rejected. Please approve MetaMask connection");
@@ -219,6 +223,7 @@
             }
         }
 
+        // Add connect wallet function
         async function connectWallet() {
             try {
                 const accounts = await window.ethereum.request({
@@ -232,6 +237,7 @@
                 const networkId = await web3.eth.net.getId();
                 const networkName = getNetworkName(networkId);
 
+                // Initialize contract
                 contract = new web3.eth.Contract(abi, contractAddress);
 
                 updateWalletStatus(true, accounts[0], networkName);
@@ -276,32 +282,47 @@
                 5: 'Goerli Testnet',
                 42: 'Kovan Testnet'
             };
-
-            return networks[networkId] || 'Unknown Network';
+            return networks[networkId] || `Network ${networkId}`;
         }
 
-        async function deposit() {
-            const amountInput = document.getElementById('amount');
-            const amount = web3.utils.toWei(amountInput.value, 'ether');
+        // Add connect button event listener
+        document.getElementById('connectButton').addEventListener('click', connectWallet);
 
-            const depositSpinner = document.getElementById('depositSpinner');
+        async function deposit() {
             const depositButton = document.getElementById('depositButton');
+            const depositSpinner = document.getElementById('depositSpinner');
+            const txStatus = document.getElementById('txStatus');
+
             depositButton.disabled = true;
             depositSpinner.style.display = 'inline-block';
+            txStatus.style.display = 'none';
+
+            const amount = document.getElementById("amount").value;
+            if (!amount) {
+                alert("Please enter an amount.");
+                return;
+            }
+
+            // Convert amount to Wei (XRP EVM's smallest unit)
+            const value = web3.utils.toWei(amount, "ether");
+
+            const accounts = await web3.eth.getAccounts();
+            const sender = accounts[0];
 
             try {
-                const accounts = await web3.eth.getAccounts();
                 await contract.methods.deposit().send({
-                    from: accounts[0],
-                    value: amount
+                    from: sender,
+                    value: value
                 });
-
-                alert('Deposit successful!');
+                txStatus.className = 'alert alert-success mt-3';
+                txStatus.textContent = 'Transaction successful!';
             } catch (error) {
-                alert('Error during deposit: ' + error.message);
+                txStatus.className = 'alert alert-danger mt-3';
+                txStatus.textContent = `Transaction failed: ${error.message}`;
             } finally {
-                depositSpinner.style.display = 'none';
                 depositButton.disabled = false;
+                depositSpinner.style.display = 'none';
+                txStatus.style.display = 'block';
             }
         }
 
@@ -394,6 +415,24 @@
             }
         }
 
+
+        const proofInput = document.getElementById('proof');
+        const recipientInput = document.getElementById('recipient');
+        const withdrawButton = document.getElementById('withdrawButton');
+
+        function validateWithdrawForm() {
+            const proof = proofInput.value.trim();
+            const recipient = recipientInput.value.trim();
+
+            if (proof && recipient) {
+                withdrawButton.disabled = false;
+            } else {
+                withdrawButton.disabled = true;
+            }
+        }
+
+        proofInput.addEventListener('input', validateWithdrawForm);
+        recipientInput.addEventListener('input', validateWithdrawForm);
 
         window.onload = init;
     </script>
