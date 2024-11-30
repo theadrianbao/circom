@@ -65,14 +65,13 @@ def execute_generate_call():
                 output_json = json.loads(output)
                 proof = output_json.get("proof")  # Extract proof
                 public_signals = output_json.get("public_signals")  # Extract public signals
-
                 # Verify the proof
-                is_valid = verify_proof(proof, public_signals, verification_key_path)
+                # is_valid = verify_proof(proof, public_signals, verification_key_path)
 
-                if is_valid:
-                    verification_message = "Proof verified successfully."
-                else:
-                    verification_message = "Proof verification failed."
+                # if is_valid:
+                #     verification_message = "Proof verified successfully."
+                # else:
+                #     verification_message = "Proof verification failed."
             except json.JSONDecodeError:
                 output_json = output
         else:
@@ -82,7 +81,7 @@ def execute_generate_call():
             "success": True,
             "message": "Script executed successfully.",
             "output": output_json,
-            "verification": verification_message
+            # "verification": verification_message
         }, 200
 
     except Exception as e:
@@ -91,12 +90,18 @@ def execute_generate_call():
             "message": "An exception occurred.",
             "error": str(e)
         }, 500
+    
 
 @app.route('/generatecall', methods=['POST'])
 def generatecall():
     # Endpoint to generate call
-    result, status_code = execute_generate_call()
-    return jsonify(result), status_code
+    try:
+        result, status_code = execute_generate_call()
+        if not isinstance(result, dict) or not isinstance(status_code, int):
+            raise ValueError("Invalid response from execute_generate_call()")
+        return jsonify(result), status_code
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/deploy_contract', methods=['POST'])
 async def deploy_contract():
@@ -137,4 +142,4 @@ async def deploy_contract():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5500)

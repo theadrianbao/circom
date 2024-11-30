@@ -341,7 +341,7 @@
             depositSpinner.style.display = 'inline-block';
 
             try {
-                const response = await fetch('http://127.0.0.1:5000/generatecall', {
+                const response = await fetch('http://127.0.0.1:5500/generatecall', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -387,7 +387,7 @@
             withdrawSpinner.style.display = 'inline-block';
 
             try {
-                const response = await fetch('http://127.0.0.1:5000/withdraw', {
+                const response = await fetch('http://127.0.0.1:5500/withdraw', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
