@@ -341,7 +341,7 @@
             depositSpinner.style.display = 'inline-block';
 
             try {
-                const response = await fetch('http://127.0.0.1:5000/deposit', {
+                const response = await fetch('http://127.0.0.1:5500/generatecall', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -387,7 +387,7 @@
             withdrawSpinner.style.display = 'inline-block';
 
             try {
-                const response = await fetch('http://127.0.0.1:5000/withdraw', {
+                const response = await fetch('http://127.0.0.1:5500/withdraw', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -405,13 +405,7 @@
                 const result = await response.json();
                 console.log('Withdraw API response:', result);
 
-                if (result.success) {
-                    // Update the SNARK Proof field with the proof from the deposit response
-                    proofInput.value = result.snark_proof || "No proof returned";
-                    alert('Deposit successful: Proof has been generated and added to the form.');
-                } else {
-                    alert(`Deposit failed: ${result.message}`);
-                }
+                alert('Withdraw successful: ' + JSON.stringify(result));
             } catch (error) {
                 console.error('Error during withdraw API call:', error);
                 alert('Error: ' + error.message);

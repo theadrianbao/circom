@@ -5,12 +5,10 @@ import json
 from xrp_contract import XRPContract
 import asyncio
 from dotenv import load_dotenv
-from flask_cors import CORS
 
 load_dotenv('./.env')
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
 # Initialize XRP contract with source wallet seed from environment variable
 xrp_contract = XRPContract(metamask_private_key=os.getenv('METAMASK_PRIVATE_KEY'))
 
@@ -42,7 +40,7 @@ def execute_generate_call():
 
         if not os.path.exists(script_path):
             return {
-            "success": False,
+                "success": False,
                 "message": "The 'make_plonk_contract.sh' script does not exist in the current directory."
             }, 500
 
@@ -65,8 +63,8 @@ def execute_generate_call():
                 output = file.read()
             try:
                 output_json = json.loads(output)
-                # proof = output_json.get("proof")  # Extract proof
-                # public_signals = output_json.get("public_signals")  # Extract public signals
+                proof = output_json.get("proof")  # Extract proof
+                public_signals = output_json.get("public_signals")  # Extract public signals
                 # Verify the proof
                 # is_valid = verify_proof(proof, public_signals, verification_key_path)
 
@@ -93,37 +91,22 @@ def execute_generate_call():
             "error": str(e)
         }, 500
     
-    
 
-@app.route('/deposit', methods=['POST'])
-async def deposit():
-    """
-    Endpoint to handle deposit requests.
-    Input:
-        - amount: The amount of XRP to transfer.
-        - currency: The currency type (e.g., XRP).
-    """
+@app.route('/generatecall', methods=['POST'])
+def generatecall():
+    # Endpoint to generate call
     try:
-        # data = request.get_json()
-        # amount = data.get('amount', '10')
-        # currency = data.get('currency', 'XRP')  # Default currency is XRP
+        result, status_code = execute_generate_call()
+        if not isinstance(result, dict) or not isinstance(status_code, int):
+            raise ValueError("Invalid response from execute_generate_call()")
+        return jsonify(result), status_code
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
-        amount = 10
-        currency = 'XRP'
-
-        if not amount:
-            return jsonify({
-                "success": False,
-                "message": "Amount is required"
-            }), 400
-
-        if currency != 'XRP':
-            return jsonify({
-                "success": False,
-                "message": "Unsupported currency. Only XRP is allowed."
-            }), 400
-
-        # Step 1: Get deposit address
+@app.route('/get_deposit_address', methods=['GET'])
+def get_deposit_address():
+    """Get the address to deposit XRP"""
+    try:
         if xrp_contract.eth_account:
             deposit_address = xrp_contract.eth_account.address
         elif xrp_contract.source_wallet:
@@ -133,34 +116,12 @@ async def deposit():
                 "success": False,
                 "message": "No wallet initialized"
             }), 500
-
-        # Step 2: Generate the SNARK proof using the `generatecall` function
-        result, status_code = execute_generate_call()
-        print(f"Result: {result}")
-        print(f"Status code: {status_code}")
-        if not isinstance(result, dict) or not isinstance(status_code, int):
-            raise ValueError("Invalid response from execute_generate_call()")
-
-        if not result.get("success"):
-            return jsonify({
-                "success": False,
-                "message": "Failed to generate SNARK proof",
-                "details": result.get("message")
-            }), 500
-
-        proof = result.get("output", {}).get("proof", "N/A")
-        public_signals = result.get("output", {}).get("public_signals", "N/A")
-
+            
         return jsonify({
             "success": True,
-            "message": "Deposit information generated successfully",
             "deposit_address": deposit_address,
-            "amount": amount,
-            "currency": currency,
-            "snark_proof": proof,
-            "public_signals": public_signals
+            "message": "Send XRP to this address to make a deposit"
         }), 200
-
     except Exception as e:
         return jsonify({
             "success": False,
@@ -168,63 +129,33 @@ async def deposit():
             "error": str(e)
         }), 500
 
-
-
-@app.route('/withdraw', methods=['POST'])
-async def withdraw():
-    """
-    Endpoint to handle withdrawal requests.
-    Input:
-        - proof: The SNARK proof for verification.
-        - recipient: The recipient's XRP address.
-    Output:
-        - success: Whether the withdrawal was successful.
-        - message: A status message.
-    """
+@app.route('/deploy_contract', methods=['POST'])
+async def deploy_contract():
     try:
-        # Parse the input data
         data = request.get_json()
-        proof = data.get('proof')
-        recipient = data.get('recipient')
-
-        # Validate inputs
-        if not proof:
+        destination_address = data.get('destination_address')
+        amount = data.get('amount', 10)  # Default amount is 10 XRP if not specified
+        
+        if not destination_address:
             return jsonify({
                 "success": False,
-                "message": "Proof is required"
+                "message": "Destination address is required"
             }), 400
 
-        if not recipient:
-            return jsonify({
-                "success": False,
-                "message": "Recipient address is required"
-            }), 400
-
-        # Define the amount to transfer
-        amount = 10  # Default amount for withdrawal
-
-        # Verify the proof (optional - if needed in your workflow)
-        # verification_result = verify_proof(proof, public_signals, verification_key_path)
-        # if not verification_result:
-        #     return jsonify({
-        #         "success": False,
-        #         "message": "Proof verification failed."
-        #     }), 400
-
-        # Perform the XRP transfer
-        response = await xrp_contract.send_xrp(recipient, amount)
-
-        # Verify transaction success
-        if response and xrp_contract.verify_transaction(response.result['hash']):
+        # Send XRP from our wallet to the user's destination address
+        response = await xrp_contract.send_xrp(destination_address, amount)
+        
+        # Verify transaction
+        if xrp_contract.verify_transaction(response.result['hash']):
             return jsonify({
                 "success": True,
-                "message": "Withdrawal successful",
+                "message": "XRP transfer successful",
                 "transaction_hash": response.result['hash']
             }), 200
         else:
             return jsonify({
                 "success": False,
-                "message": "Withdrawal failed. Transaction could not be verified."
+                "message": "XRP transfer failed"
             }), 500
 
     except Exception as e:
@@ -236,6 +167,5 @@ async def withdraw():
 
 
 
-
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5500)
