@@ -10,9 +10,7 @@ load_dotenv('./.env')
 
 app = Flask(__name__)
 # Initialize XRP contract with source wallet seed from environment variable
-print(f'seed: {os.getenv("XRP_CONTRACT_SOURCE_WALLET_SEED")}')
-
-xrp_contract = XRPContract(source_wallet_seed=os.getenv('XRP_CONTRACT_SOURCE_WALLET_SEED'))
+xrp_contract = XRPContract(metamask_private_key=os.getenv('METAMASK_PRIVATE_KEY'))
 
 def verify_proof(proof, public_signals, verification_key_path):
     """Function to verify the proof"""
