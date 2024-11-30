@@ -1,4 +1,6 @@
 import os
+import sys
+sys.path.append('/Users/zhengxiang/Documents/UCB/Courses/DeFi/Code/project/circom/poseidon-hash')
 import poseidon
 import json
 
