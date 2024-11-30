@@ -1,12 +1,11 @@
 {
-  "name": "circom",
-  "version": "1.0.0",
-  "description": "<div align=\"center\"> <img src=\"mkdocs/docs/circom-logo-black.png\" width=\"300\"/> </div> <div align=\"center\">",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "dependencies": {
+    "snarkjs": "^0.7.5",
+    "xrpl": "^4.0.0"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.16"
+  },
+  "type": "module"
 }
