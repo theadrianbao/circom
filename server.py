@@ -56,6 +56,7 @@ def execute_generate_call():
                 "message": "The 'make_plonk_contract.sh' script does not exist in the current directory."
             }, 500
 
+        # Run the shell script
         process = subprocess.run(
             ["bash", script_path],
             text=True,
@@ -70,7 +71,7 @@ def execute_generate_call():
                 "error": process.stderr
             }, 500
 
-        # Regular expression to match the address
+        # Regular expression to match the contract address
         address_match = re.search(r'Contract deployed at address: (\w+)', process.stdout)
 
         if address_match:
@@ -78,32 +79,19 @@ def execute_generate_call():
         else:
             contract_address = "Unknown"
 
+        # Read the generatecall_output.txt file if it exists
         if os.path.exists(output_file_path):
             with open(output_file_path, 'r') as file:
                 output = file.read()
-            try:
-                output_json = json.loads(output)
-                proof = output_json.get("proof")  # Extract proof
-                public_signals = output_json.get("public_signals")  # Extract public signals
-                # Verify the proof
-                # is_valid = verify_proof(proof, public_signals, verification_key_path)
-
-                # if is_valid:
-                #     verification_message = "Proof verified successfully."
-                # else:
-                #     verification_message = "Proof verification failed."
-            except json.JSONDecodeError:
-                output_json = output
         else:
-            output_json = "Error: generatecall output not found."
+            output = "Error: generatecall_output.txt not found."
 
-        print(f'output_json: {output_json}')
-        
+        # Return only the contract address and the output file content
         return {
             "success": True,
             "message": "Script executed successfully.",
-            "output": output_json,
-            "contract_address": contract_address
+            "contract_address": contract_address,
+            "generatecall_output": output
         }, 200
 
     except Exception as e:
@@ -112,8 +100,6 @@ def execute_generate_call():
             "message": "An exception occurred.",
             "error": str(e)
         }, 500
-    
-
 
 @app.route('/deposit', methods=['GET', 'POST'])
 async def deposit():
@@ -188,11 +174,12 @@ async def deposit():
                     "details": result.get("message")
                 }), 500
 
-            proof = result.get("output", {}).get("proof", "N/A")
-            public_signals = result.get("output", {}).get("public_signals", "N/A")
+            # Only use the contract address and output from the `generatecall_output.txt` file
+            contract_address = result.get("contract_address", "N/A")
+            generatecall_output = result.get("generatecall_output", "N/A")
             
-            print(f'proof: {proof}')
-            print(f'public_signals: {public_signals}')
+            print(f'contract_address: {contract_address}')
+            print(f'generatecall_output: {generatecall_output}')
 
             return jsonify({
                 "success": True,
@@ -200,8 +187,8 @@ async def deposit():
                 "deposit_address": deposit_address,
                 "amount": amount,
                 "currency": currency,
-                "snark_proof": proof,
-                "public_signals": public_signals
+                "contract_address": contract_address,
+                "generatecall_output": generatecall_output
             }), 200
 
         except Exception as e:
@@ -210,8 +197,6 @@ async def deposit():
                 "message": "An exception occurred.",
                 "error": str(e)
             }), 500
-
-
 
 @app.route('/withdraw', methods=['POST'])
 async def withdraw():
