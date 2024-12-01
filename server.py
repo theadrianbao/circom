@@ -1,11 +1,23 @@
-from flask import Flask, jsonify, request
-import subprocess
+from flask import Flask, jsonify, request, send_file
+from flask_cors import CORS
 import os
+import subprocess
+import threading
+import queue
+import asyncio
 import re
 import json
 from xrp_contract import XRPContract
 
 app = Flask(__name__)
+
+CORS(app, resources={r"/*": {
+    "origins": ["*"],  # Replace "*" with specific origins, e.g., ["http://localhost:3000"]
+    "allow_headers": ["*"],
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "supports_credentials": True
+}})
+
 # Initialize XRP contract with source wallet seed from environment variable
 xrp_contract = XRPContract(metamask_private_key=os.getenv('METAMASK_PRIVATE_KEY'))
 
@@ -49,10 +61,14 @@ def execute_generate_call():
                 output = file.read()
             try:
                 output_json = json.loads(output)
+                proof = output_json.get("proof")  # Extract proof
+                public_signals = output_json.get("public_signals")  # Extract public signals
             except json.JSONDecodeError:
                 output_json = output
         else:
             output_json = "Error: generatecall output not found."
+
+        print(f'output_json: {output_json}')
 
         return {
             "success": True,
@@ -136,5 +152,10 @@ async def deploy_contract():
             "error": str(e)
         }), 500
 
+@app.route('/', methods=['GET'])
+def index():
+    return send_file('website.html')
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False, host='0.0.0.0', port=5002)
+    # app.run(debug=True)
