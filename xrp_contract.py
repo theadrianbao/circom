@@ -73,10 +73,12 @@ class XRPContract:
     def verify_transaction(self, tx_hash):
         # Verify the transaction was successful
         try:
-            tx_response = self.client.request(
-                "tx",
-                {"transaction": tx_hash}
-            )
-            return tx_response.result.get("validated", False)
+            receipt = self.w3.eth.get_transaction_receipt(tx_hash)
+            if receipt and receipt["status"] == 1:
+                return True
+            else:
+                print(f"Transaction failed or not yet mined: {receipt}")
+                return False
         except Exception as e:
+            print(f"Detailed error: {str(e)}")
             return False
