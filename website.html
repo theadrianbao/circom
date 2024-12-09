@@ -1,24 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XRP Mixer Deposit</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.6.1/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
             background-color: #f8f9fa;
             padding: 20px;
         }
+
         .container {
             max-width: 800px;
             background: white;
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
             margin-top: 50px;
         }
+
         .status-indicator {
             display: inline-block;
             width: 10px;
@@ -26,22 +30,27 @@
             border-radius: 50%;
             margin-right: 10px;
         }
+
         .status-connected {
             background-color: #28a745;
         }
+
         .status-disconnected {
             background-color: #dc3545;
         }
+
         .wallet-status {
             margin-bottom: 20px;
             padding: 10px;
             border-radius: 5px;
             background-color: #f8f9fa;
         }
+
         .loading {
             display: none;
             margin-left: 10px;
         }
+
         .info-box {
             background-color: #e9ecef;
             padding: 15px;
@@ -50,10 +59,11 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1 class="mb-4">XRP Mixer</h1>
-        
+
         <!-- Wallet Status -->
         <div class="wallet-status">
             <div class="d-flex align-items-center mb-2">
@@ -63,7 +73,9 @@
             <div id="accountInfo" class="small text-muted"></div>
             <div id="networkInfo" class="small text-muted"></div>
             <div class="mt-2">
-                <button id="connectButton" class="btn btn-success btn-sm">Connect Wallet</button>
+                <button id="connectButton" class="btn btn-success btn-sm" onclick="connectWallet()">Connect
+                    Wallet</button>
+
             </div>
         </div>
 
@@ -81,18 +93,16 @@
         <div class="card">
             <div class="card-body">
                 <div class="mb-3">
-                    <label for="amount" class="form-label">Amount to Deposit (XRP)</label>
-                    <div class="input-group">
-                        <input type="number" class="form-control" id="amount" step="0.01" min="0" placeholder="Enter amount">
-                        <span class="input-group-text">XRP</span>
-                    </div>
-                    <div class="form-text">Minimum deposit: 0.01 XRP</div>
+                    Amount to Deposit (XRP)
                 </div>
 
-                <button onclick="deposit()" class="btn btn-primary" id="depositButton" disabled>
-                    Deposit
+                <button onclick="depositWithApiCall(event, 10)" class="btn btn-primary" id="depositButton" disabled>
+                    10 XRP
                     <span class="spinner-border spinner-border-sm loading" id="depositSpinner"></span>
                 </button>
+            </div>
+            <div class="info-box" id="proofOutput">
+                Proof (COPY THIS): abcdef
             </div>
         </div>
 
@@ -100,17 +110,21 @@
             <div class="card-body">
                 <h5 class="card-title">Withdraw XRP</h5>
                 <div class="mb-3">
-                    <label for="proof" class="form-label">SNARK Proof</label>
-                    <textarea class="form-control" id="proof" rows="4" placeholder="Enter snarkjs generatecall output"></textarea>
+                    <label for="proofInput" class="form-label">SNARK Proof</label>
+                    <textarea class="form-control" id="proofInput" rows="4"
+                        placeholder="Enter snarkjs generatecall output"></textarea>
                 </div>
                 <div class="mb-3">
                     <label for="recipient" class="form-label">Recipient Address</label>
                     <input type="text" class="form-control" id="recipient" placeholder="Enter recipient address">
                 </div>
-                <button onclick="withdraw()" class="btn btn-primary" id="withdrawButton" disabled>
+                <button onclick="withdrawWithApiCall(event)" class="btn btn-primary" id="withdrawButton">
                     Withdraw
                     <span class="spinner-border spinner-border-sm loading" id="withdrawSpinner"></span>
                 </button>
+            </div>
+            <div class="info-box" id="withdrawOutput">
+                Withdrawal Successful
             </div>
         </div>
 
@@ -119,7 +133,7 @@
     </div>
 
     <script>
-        const contractAddress = "0x29b013021f276b5d9e16edc63d6acb2eaef5995c"; // Replace with actual contract address
+        const contractAddress = "0x53a7aae10d95cd4e9da9aec86e96a35895c039e2"; // Replace with actual contract address
         const abi = [
             {
                 "inputs": [],
@@ -145,6 +159,11 @@
 
         let web3;
         let contract;
+        let currentWalletState = {
+            connected: false,
+            account: '',
+            network: ''
+        };
 
         async function init() {
             try {
@@ -154,20 +173,33 @@
                 }
 
                 web3 = new Web3(provider);
-                
-                window.ethereum.on('accountsChanged', handleAccountsChanged);
-                
+
                 const accounts = await web3.eth.getAccounts();
-                if (accounts && accounts.length > 0) {
-                    await connectWallet();
+                if (accounts.length > 0) {
+                    const networkId = await web3.eth.net.getId();
+                    const networkName = getNetworkName(networkId);
+                    updateWalletStatus(true, accounts[0], networkName);
                 } else {
                     updateWalletStatus(false);
                 }
+
+                // 注册事件监听
+                provider.on('accountsChanged', handleAccountsChanged);
+                provider.on('chainChanged', () => {
+                    window.location.reload(); // 切换网络后重新加载页面
+                });
+
             } catch (error) {
+                console.error('Initialization failed:', error);
                 updateWalletStatus(false);
                 handleConnectionError(error);
             }
         }
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('connectButton').addEventListener('click', connectWallet);
+        });
 
         async function handleAccountsChanged(accounts) {
             if (accounts.length === 0) {
@@ -179,21 +211,26 @@
             }
         }
 
+
+
+        // Add provider detection function
         function detectProvider() {
             let provider;
             if (window.ethereum) {
                 provider = window.ethereum;
-            } else if (window.web3) {
+            } else if (window.web3) { // Old version of MetaMask support
                 provider = window.web3.currentProvider;
             }
-            
+
             if (provider && provider.isMetaMask) {
                 return provider;
             }
-            
+
+            alert("MetaMask is not detected. Please install MetaMask: https://metamask.io/download/");
             return null;
         }
 
+        // Error handling function
         function handleConnectionError(error) {
             if (error.code === 4001) {
                 alert("Connection rejected. Please approve MetaMask connection");
@@ -206,21 +243,23 @@
             }
         }
 
+        // Add connect wallet function
         async function connectWallet() {
             try {
-                const accounts = await window.ethereum.request({ 
-                    method: 'eth_requestAccounts' 
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
                 });
-                
+
                 if (!accounts || accounts.length === 0) {
                     throw new Error("Please connect your MetaMask wallet");
                 }
 
                 const networkId = await web3.eth.net.getId();
                 const networkName = getNetworkName(networkId);
-                
+
+                // Initialize contract
                 contract = new web3.eth.Contract(abi, contractAddress);
-                
+
                 updateWalletStatus(true, accounts[0], networkName);
             } catch (error) {
                 updateWalletStatus(false);
@@ -234,7 +273,14 @@
             const accountInfo = document.getElementById('accountInfo');
             const networkInfo = document.getElementById('networkInfo');
             const depositButton = document.getElementById('depositButton');
+            const proofOutput = document.getElementById('proofOutput');
+            const withdrawOutput = document.getElementById('withdrawOutput');
             const connectButton = document.getElementById('connectButton');
+
+            proofOutput.textContent = ''
+            proofOutput.style.display = 'none';
+            withdrawOutput.textContent = ''
+            withdrawOutput.style.display = 'none';
 
             if (connected) {
                 statusIndicator.classList.remove('status-disconnected');
@@ -244,6 +290,9 @@
                 networkInfo.textContent = `Network: ${network}`;
                 depositButton.disabled = false;
                 connectButton.style.display = 'none';
+                document.getElementById('recipient').value = account;
+                currentWalletState["connected"] = true;
+                currentWalletState["account"] = account;
             } else {
                 statusIndicator.classList.remove('status-connected');
                 statusIndicator.classList.add('status-disconnected');
@@ -252,8 +301,12 @@
                 networkInfo.textContent = '';
                 depositButton.disabled = true;
                 connectButton.style.display = 'inline-block';
+                document.getElementById('recipient').value = "";
+                currentWalletState["connected"] = false;
+                currentWalletState["account"] = '';
             }
         }
+
 
         function getNetworkName(networkId) {
             const networks = {
@@ -267,32 +320,107 @@
             return networks[networkId] || 'Unknown Network';
         }
 
-        async function deposit() {
-            const amountInput = document.getElementById('amount');
-            const amount = web3.utils.toWei(amountInput.value, 'ether');
 
+        async function depositWithApiCall(event, amount) {
+            event.preventDefault();
             const depositSpinner = document.getElementById('depositSpinner');
             const depositButton = document.getElementById('depositButton');
             depositButton.disabled = true;
             depositSpinner.style.display = 'inline-block';
 
-            try {
-                const accounts = await web3.eth.getAccounts();
-                await contract.methods.deposit().send({
-                    from: accounts[0],
-                    value: amount
-                });
+            const proofOutput = document.getElementById('proofOutput');
+            proofOutput.style.display = 'none';
 
-                alert('Deposit successful!');
+            try {
+                const response = await axios.post('http://127.0.0.1:5002/deposit', {
+                    sender: currentWalletState["account"],
+                    amount: amount,
+                    currency: 'XRP'
+                });
+                console.log("response:", response)
+                console.log("response.data.transaction:", response.data.transaction)
+
+                if (!window.ethereum) {
+                    alert("MetaMask is not detected. Please install MetaMask: https://metamask.io/download/");
+                    return;
+                }
+                const provider = window.ethereum;
+
+                try {
+                    const txHash = await provider.request({
+                        method: 'eth_sendTransaction',
+                        params: [response.data.transaction],
+                    });
+                    console.log(`Transaction sent successfully! Hash: ${txHash}`);
+                } catch (error) {
+                    if (error.code === 4001) {
+                        try {
+                        const cancel_response = await axios.post('http://127.0.0.1:5002/remove_withdrawal_request', {
+                            proof_key: response.data.proof_key
+                        });
+                        console.log("cancel_response:", cancel_response);
+                        }
+                        catch (error) {
+                            console.error("Error sending transaction:", error);
+                        }
+                    }
+                    else {
+                        console.error("Error sending transaction:", error);
+                    }
+                }
+
+                proofOutput.textContent = "Proof (COPY THIS):\n" + response.data.proof_key.replace(" ", "") || "No proof generated";
+                proofOutput.style.display = 'inline-block';
             } catch (error) {
-                alert('Error during deposit: ' + error.message);
+                console.error('Error during deposit API call:', error);
             } finally {
                 depositSpinner.style.display = 'none';
                 depositButton.disabled = false;
             }
         }
 
-        window.onload = init;
+        async function withdrawWithApiCall(event) {
+            event.preventDefault();
+            const withdrawSpinner = document.getElementById('withdrawSpinner');
+            const withdrawButton = document.getElementById('withdrawButton');
+
+            const withdrawOutput = document.getElementById('withdrawOutput');
+            withdrawOutput.style.display = 'none';
+
+            const proofInput = document.getElementById('proofInput');
+            const recipientInput = document.getElementById('recipient');
+            const proof = proofInput.value.trim();
+            const recipient = recipientInput.value.trim();
+
+            if (!proof || !recipient) {
+                alert("Please provide both the SNARK proof and recipient address.");
+                return;
+            }
+
+            withdrawButton.disabled = true;
+            withdrawSpinner.style.display = 'inline-block';
+
+            try {
+                const response = await axios.post('http://127.0.0.1:5002/withdraw', {
+                    sender: currentWalletState["account"],
+                    proof: proof,
+                    recipient: recipient
+                });
+                withdrawOutput.textContent = "Withdrawal Successful";
+                withdrawOutput.style.display = 'inline-block';
+                console.log('Withdraw API response:', response.data);
+            } catch (error) {
+                console.error('Error during withdraw API call:', error);
+            } finally {
+                withdrawSpinner.style.display = 'none';
+                withdrawButton.disabled = false;
+            }
+        }
+
+
+        // Initialize on page load
+        init();
     </script>
 </body>
+
 </html>

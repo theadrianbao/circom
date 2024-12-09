@@ -19,7 +19,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load environment variables
-const PRIVATE_KEY = process.env.METAMASK_PRIVATE_KEY;
+const PRIVATE_KEY = process.env.SLUSH_FUND_PRIVATE_KEY;
 const RPC_URL = "https://rpc-evm-sidechain.xrpl.org/";
 
 // Load the compiled contract JSON
@@ -54,9 +54,15 @@ async function deployContract() {
         await contract.deploymentTransaction().wait();
 
         console.log(`Contract deployed at address: ${contract.target}`);
+        console.log(`Contract ABI: ${JSON.stringify(abi, null, 2)}`);
     } catch (error) {
         console.error("Error deploying the contract:", error);
     }
 }
 
+// Comment for testing (bridge issue)
 deployContract();
+
+// Uncomment for testing (bridge issue)
+// console.log("Contract deployed at address: 0xdeadbeef");
+// console.log(`Contract ABI: ${JSON.stringify(abi, null, 2)}`);

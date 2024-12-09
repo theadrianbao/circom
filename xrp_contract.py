@@ -7,7 +7,7 @@ from web3 import Web3
 from eth_account import Account
 
 class XRPContract:
-    def __init__(self, server_url="https://s.altnet.rippletest.net:51234", source_wallet_seed=None, metamask_private_key='2c9e0d3cdc9fbd1bea04dd6bb127f6ac0a2f48df236b70ebaf85a5d6f5f125e8'):
+    def __init__(self, server_url="https://s.altnet.rippletest.net:51234", source_wallet_seed=None, metamask_private_key=None):
         self.client = JsonRpcClient(server_url)
         self.w3 = Web3(Web3.HTTPProvider('https://rpc-evm-sidechain.xrpl.org'))
         
@@ -69,14 +69,16 @@ class XRPContract:
                 raise e
         else:
             raise Exception("MetaMask wallet not initialized")
-    
+
     def verify_transaction(self, tx_hash):
         # Verify the transaction was successful
         try:
-            tx_response = self.client.request(
-                "tx",
-                {"transaction": tx_hash}
-            )
-            return tx_response.result.get("validated", False)
+            receipt = self.w3.eth.get_transaction_receipt(tx_hash)
+            if receipt and receipt["status"] == 1:
+                return True
+            else:
+                print(f"Transaction failed or not yet mined: {receipt}")
+                return False
         except Exception as e:
+            print(f"Detailed error: {str(e)}")
             return False
