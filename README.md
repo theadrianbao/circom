@@ -1,13 +1,13 @@
 # MultiPool Mixer Setup Guide
 
 ## Set up the environment
-1. clone the repo https://github.com/theadrianbao/circom.git  
+1. clone the repo 
    git clone https://github.com/theadrianbao/circom.git  
 2. checkout out to the main branch  
    git checkout main
 3. use conda to build the environment  
 conda env create -f environment.yml
-4. edit files in .env file
+1. edit files in .env file  
 add METAMASK_PRIVATE_KEY and SLUSH_FUND_PRIVATE_KEY in the .env file.
 
 ## Deploying the Contract via Remix
