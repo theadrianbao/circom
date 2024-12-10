@@ -134,6 +134,7 @@ async def mixer_generate_proof():
         
     if not isinstance(result, dict) or not isinstance(status_code, int):
         raise ValueError("Invalid response from execute_generate_call()")
+    
 
     if not result.get("success"):
         return jsonify({
@@ -239,6 +240,7 @@ async def deposit():
             recipient = slush_pool.address
         else:
             print(f"[{sender}]: Slush pool wallet not initialized")
+            print("Deposit failed. Slush pool wallet not initialized")
             return jsonify({
                 "success": False,
                 "message": "Deposit failed. Slush pool wallet not initialized"
@@ -261,12 +263,14 @@ async def deposit():
         try:
             result, status_code = result_queue.get_nowait()
         except queue.Empty:
+            print("Background task failed")
             result, status_code = {"success": False, "message": "Background task failed"}, 500
             
         if not isinstance(result, dict) or not isinstance(status_code, int):
             raise ValueError("Invalid response from execute_generate_call()")
 
         if not result.get("success"):
+            print("Deposit failed. Could not generate SNARK proof")
             return jsonify({
                 "success": False,
                 "message": "Deposit failed. Could not generate SNARK proof",
@@ -291,6 +295,7 @@ async def deposit():
                     "message": "Deposit failed. Smart contract function verifyProof returned false."
                 }), 400  
         except Exception as e:
+            print("Deposit failed. Smart contract function verifyProof had an error")
             return jsonify({
                 "success": False,
                 "message": "Deposit failed. Smart contract function verifyProof had an error.",
@@ -330,6 +335,7 @@ async def deposit():
         }), 200
 
     except Exception as e:
+        print("Deposit failed. An exception occurred.")
         return jsonify({
             "success": False,
             "message": "Deposit failed. An exception occurred.",
