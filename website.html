@@ -145,7 +145,7 @@
     </div>
 
     <script>
-        const contractAddress = "0xfe2e8713bc9d75465c6fc384cdf63f9e96e55db3"; // Replace with actual contract address
+        const contractAddress = "0xd9145CCE52D386f254917e481eB44e9943F39138";  // Replace with actual contract address
         const abi = [
             {
                 "inputs": [],
@@ -503,6 +503,7 @@
                 proofOutput.textContent = "Proof (COPY THIS):\n" + response.data.proof_key.replace(" ", "") || "No proof generated";
                 proofOutput.style.display = 'inline-block';
             } catch (error) {
+
                 console.error('Error during deposit API call:', error);
             } finally {
                 depositSpinner.style.display = 'none';
